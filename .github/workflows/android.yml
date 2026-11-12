@@ -1,0 +1,60 @@
+
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - name: Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Android NDK
+        shell: bash
+        run: |
+          sdkmanager --install "ndk;27.2.12479018"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Initialize Android
+        run: pnpm android:init --ci
+
+      - name: Build Debug APK
+        run: pnpm android:build --debug --apk --target aarch64 --ci
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HGhub-Android-Debug
+          path: src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
